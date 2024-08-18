@@ -277,7 +277,11 @@ func extractContent(node *html.Node, comment *model.Comment) error {
 
 	var buf bytes.Buffer
 
-	err := html.Render(&buf, contentNode)
+	contentCopy := *contentNode
+
+	clearAttributes(&contentCopy)
+
+	err := html.Render(&buf, &contentCopy)
 
 	if err != nil {
 		return err
@@ -286,6 +290,14 @@ func extractContent(node *html.Node, comment *model.Comment) error {
 	comment.Content = fixText(buf.String())
 
 	return nil
+}
+
+// clearAttributes recursively clears out the attributes of a
+// provided HTML node - in place.
+func clearAttributes(node *html.Node) {
+	traverseNode(node, func(n *html.Node) {
+		n.Attr = []html.Attribute{}
+	})
 }
 
 // extractCommentAuthor extracts the author's name from the provided HTML node and
@@ -557,6 +569,20 @@ func getChildRefByPredicate(node *html.Node, predicate func(*html.Node) bool) *h
 	}
 
 	return nil
+}
+
+// traverseNode provides a higher-order function for traversing
+// and operating on nodes in-place.
+func traverseNode(node *html.Node, fn func(*html.Node)) {
+	if node == nil {
+		return
+	}
+
+	fn(node)
+
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		traverseNode(child, fn)
+	}
 }
 
 // classIs checks whether the provided HTML node belongs to the specified class.
